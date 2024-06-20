@@ -53,6 +53,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
     private func stopSession() {
         state = "scanned"
         roomCaptureView?.captureSession.stop()
+        updateButtons()
     }
     
     func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: (Error)?) -> Bool {
@@ -119,8 +120,8 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
     
     
     private func addButtons() {
-        cancelButton = createButton(title: "Cancel", backgroundColor: UIColor.red)
-        doneButton = createButton(title: "Done", backgroundColor: UIColor.blue)
+        cancelButton = createButton(title: "Cancel", backgroundColor: UIColor(hex: "#D65745"))
+        doneButton = createButton(title: "Done", backgroundColor: UIColor(hex: "#00A885"))
         
         cancelButton!.addTarget(self, action: #selector(cancelScanning), for: .touchUpInside)
         roomCaptureView.addSubview(cancelButton!)
@@ -128,6 +129,12 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         roomCaptureView.addSubview(doneButton!)
         
         setupConstraints()
+    }
+    
+    private func updateButtons() {
+        if state == "scanned" {
+            cancelButton?.removeFromSuperview()
+        }
     }
     
     func setupConstraints() {
@@ -160,5 +167,25 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         } else {
             return false
         }
+    }
+}
+
+extension UIColor {
+    convenience init(hex: String, alpha: CGFloat = 1.0) {
+        let hexString = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hexString).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hexString.count {
+        case 3:
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6:
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8:
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(red: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: CGFloat(a) / 255)
     }
 }
