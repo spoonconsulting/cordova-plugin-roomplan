@@ -72,7 +72,6 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         self.activityIndicator?.stopAnimating()
     }
     
-    // Action for the 'Done' button
     @objc func doneScanning(_ sender: UIButton) {
         if state == "scanning" {
             stopSession()
@@ -106,7 +105,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
             try finalResults?.export(to: usdzFile, exportOptions: .parametric)
             if finalResults != nil {
                 let result = ["usdz": usdzFile.absoluteString, "json": jsonFile.absoluteString, "message": "Scanning completed successfully"]
-                let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: usdzFile.absoluteString)
+                let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
                 pluginResult?.keepCallback = true
                 self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
             }
