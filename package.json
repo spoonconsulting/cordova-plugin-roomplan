@@ -1,5 +1,5 @@
 {
-  "name": "cordova-plugin-roomplan",
+  "name": "@spoonconsulting/cordova-plugin-roomplan",
   "version": "1.0.0-beta1",
   "description": "",
   "main": "index.js",
