@@ -18,7 +18,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
     private var state: String = "loaded"
     private var roomCaptureView: RoomCaptureView!
     private var roomCaptureSessionConfig: RoomCaptureSession.Configuration = RoomCaptureSession.Configuration()
-    private var finalResults: CapturedRoom?
+    private var processedResult: CapturedRoom?
     
     var command: CDVInvokedUrlCommand!
     
@@ -41,6 +41,13 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         roomCaptureView.captureSession.delegate = self
         roomCaptureView.delegate = self
         viewController.view.addSubview(roomCaptureView)
+        roomCaptureView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            roomCaptureView.topAnchor.constraint(equalTo: viewController.view.topAnchor),
+            roomCaptureView.leftAnchor.constraint(equalTo: viewController.view.leftAnchor),
+            roomCaptureView.bottomAnchor.constraint(equalTo: viewController.view.bottomAnchor),
+            roomCaptureView.rightAnchor.constraint(equalTo: viewController.view.rightAnchor)
+        ]);
         startSession()
     }
     
@@ -69,7 +76,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
             self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
             return
         }
-        finalResults = processedResult
+        self.processedResult = processedResult
         self.activityIndicator?.stopAnimating()
     }
     
@@ -101,10 +108,10 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         do {
             try FileManager.default.createDirectory(at: documentsDirectory, withIntermediateDirectories: true, attributes: nil)
             let jsonEncoder = JSONEncoder()
-            let jsonData = try jsonEncoder.encode(finalResults)
+            let jsonData = try jsonEncoder.encode(self.processedResult)
             try jsonData.write(to: jsonFile)
-            try finalResults?.export(to: usdzFile, exportOptions: .parametric)
-            if (finalResults != nil) && isCapturedRoomNil(capturedRoom: finalResults!) {
+            try self.processedResult?.export(to: usdzFile, exportOptions: .parametric)
+            if (self.processedResult != nil) && isCapturedRoomNil(capturedRoom: self.processedResult!) {
                 let result = ["usdz": usdzFile.absoluteString, "json": jsonFile.absoluteString, "message": "Scanning completed successfully"]
                 let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
                 pluginResult?.keepCallback = true
@@ -117,7 +124,6 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
             self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
         }
     }
-    
     
     private func addButtons() {
         cancelButton = createButton(title: "Cancel", backgroundColor: UIColor(hex: "#D65745"))
