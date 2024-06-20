@@ -103,7 +103,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
             let jsonData = try jsonEncoder.encode(finalResults)
             try jsonData.write(to: jsonFile)
             try finalResults?.export(to: usdzFile, exportOptions: .parametric)
-            if finalResults != nil {
+            if (finalResults != nil) && isCapturedRoomNil(capturedRoom: finalResults!) {
                 let result = ["usdz": usdzFile.absoluteString, "json": jsonFile.absoluteString, "message": "Scanning completed successfully"]
                 let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
                 pluginResult?.keepCallback = true
@@ -152,5 +152,13 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         button.layer.cornerRadius = 5
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
+    }
+    
+    func isCapturedRoomNil(capturedRoom: CapturedRoom) -> Bool {
+        if #available(iOS 17.0, *) {
+            return capturedRoom.walls.count != 0 || capturedRoom.doors.count != 0 || capturedRoom.windows.count != 0 || capturedRoom.sections.count != 0 || capturedRoom.floors.count != 0 || capturedRoom.objects.count != 0 || capturedRoom.openings.count != 0
+        } else {
+            return false
+        }
     }
 }
