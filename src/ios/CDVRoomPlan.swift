@@ -35,8 +35,8 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         super.init()
     }
     
-    @objc(openRoomPlan:)
-    func openRoomPlan(command: CDVInvokedUrlCommand) {
+    @objc(open:)
+    func open(command: CDVInvokedUrlCommand) {
         self.command = command
         roomCaptureView = RoomCaptureView(frame: viewController.view.bounds)
         roomCaptureView.captureSession.delegate = self
