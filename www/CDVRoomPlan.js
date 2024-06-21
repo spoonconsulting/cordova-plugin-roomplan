@@ -1,6 +1,11 @@
-var exec = require('cordova/exec');
+var exec = require("cordova/exec");
 
-exports.openRoomPlan = function(success, error) {
-    console.log("CDVRoomPlan.js: openRoomPlan");
-    exec(success, error, "CDVRoomPlan", "openRoomPlan", []);
-  };
+exports.open = function (success, error) {
+  console.log("CDVRoomPlan.js: open");
+  exec(success, error, "CDVRoomPlan", "open", []);
+};
+
+exports.isSupported = function (success, error) {
+  console.log("CDVRoomPlan.js: isSupported");
+  exec(success, error, "CDVRoomPlan", "isSupported", []);
+}
