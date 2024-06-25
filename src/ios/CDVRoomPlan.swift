@@ -113,16 +113,16 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
     func exportResults() {
         let documentsDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("cordova-room-plan")
         let uuid = NSUUID().uuidString
-        let usdzFile = documentsDirectory.appendingPathComponent(uuid + ".usdz")
+        let modelFile = documentsDirectory.appendingPathComponent(uuid + ".usdz")
         let jsonFile = documentsDirectory.appendingPathComponent(uuid + ".json")
         do {
             try FileManager.default.createDirectory(at: documentsDirectory, withIntermediateDirectories: true, attributes: nil)
             let jsonEncoder = JSONEncoder()
             let jsonData = try jsonEncoder.encode(self.processedResult)
             try jsonData.write(to: jsonFile)
-            try self.processedResult?.export(to: usdzFile, exportOptions: .parametric)
+            try self.processedResult?.export(to: modelFile, exportOptions: .parametric)
             if (self.processedResult != nil) && isCapturedRoomNil(capturedRoom: self.processedResult!) {
-                let result = ["usdz": usdzFile.absoluteString, "json": jsonFile.absoluteString, "message": "Scanning completed successfully"]
+                let result = ["model": modelFile.absoluteString, "json": jsonFile.absoluteString, "message": "Scanning completed successfully"]
                 let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
                 pluginResult?.keepCallback = true
                 self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
