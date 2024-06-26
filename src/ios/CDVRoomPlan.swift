@@ -89,22 +89,26 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         self.activityIndicator?.stopAnimating()
     }
     
+    func dismissCaptureView() {
+        self.activityIndicator?.stopAnimating()
+        stopSession()
+        roomCaptureView.removeFromSuperview()
+        NotificationCenter.default.removeObserver(self)
+    }
+    
     @objc func doneScanning(_ sender: UIButton) {
         if state == "scanning" {
             stopSession()
             self.activityIndicator?.startAnimating()
         } else if state == "done" {
             exportResults()
-            cancelScanning(sender)
+            dismissCaptureView()
         }
     }
     
     @objc func cancelScanning(_ sender: UIButton) {
-        self.activityIndicator?.stopAnimating()
-        stopSession()
-        roomCaptureView.removeFromSuperview()
-        NotificationCenter.default.removeObserver(self)
-        let result = ["cancelled": true, "message": "Scanning cancelled"]
+        dismissCaptureView()
+        let result = ["message": "Scanning cancelled"]
         let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
         pluginResult?.keepCallback = true
         self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
