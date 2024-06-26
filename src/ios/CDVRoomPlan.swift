@@ -104,7 +104,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         stopSession()
         roomCaptureView.removeFromSuperview()
         NotificationCenter.default.removeObserver(self)
-        let result = ["message": "Scanning cancelled"]
+        let result = ["cancelled": true, "message": "Scanning cancelled"]
         let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
         pluginResult?.keepCallback = true
         self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
