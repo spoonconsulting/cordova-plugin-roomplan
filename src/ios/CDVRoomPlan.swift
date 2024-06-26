@@ -131,7 +131,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
                 pluginResult?.keepCallback = true
                 self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
             } else {
-                let result = ["message": "No data captured"]
+                let result = ["message": "No results captured"]
                 let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
                 pluginResult?.keepCallback = true
                 self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
