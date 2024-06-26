@@ -93,7 +93,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         self.activityIndicator?.stopAnimating()
         stopSession()
         roomCaptureView.removeFromSuperview()
-        NotificationCenter.default.removeObserver(self)
+        NotificationCenter.default.removeObserver(self)
     }
     
     @objc func doneScanning(_ sender: UIButton) {
@@ -107,11 +107,11 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
     }
     
     @objc func cancelScanning(_ sender: UIButton) {
-        dismissCaptureView()
         let result = ["message": "Scanning cancelled"]
         let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
         pluginResult?.keepCallback = true
         self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
+        dismissCaptureView()
     }
     
     func exportResults() {
@@ -127,6 +127,11 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
             try self.processedResult?.export(to: modelFile, exportOptions: .parametric)
             if (self.processedResult != nil) && isCapturedRoomNil(capturedRoom: self.processedResult!) {
                 let result = ["model": modelFile.absoluteString, "json": jsonFile.absoluteString, "message": "Scanning completed successfully"]
+                let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
+                pluginResult?.keepCallback = true
+                self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
+            } else {
+                let result = ["message": "No data captured"]
                 let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
                 pluginResult?.keepCallback = true
                 self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
