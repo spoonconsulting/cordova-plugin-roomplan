@@ -56,7 +56,6 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
     @objc(isSupported:)
     func isSupported(command: CDVInvokedUrlCommand) {
         let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh))
-        pluginResult?.keepCallback = true
         self.commandDelegate.send(pluginResult, callbackId: command.callbackId)
     }
     
