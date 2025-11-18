@@ -1,4 +1,3 @@
-import Cordova
 //
 //  CDVRoomPlan.swift
 //  SharinPix
@@ -6,11 +5,12 @@ import Cordova
 //  Created by Zafir Sk Heerah on 18/06/2024.
 //
 
-import Cordova
+import Foundation
 import UIKit
 import RoomPlan
 import ARKit
 import WebKit
+import Cordova
 
 @objc(CDVRoomPlan) class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegate {
     private var doneButton: UIButton?
