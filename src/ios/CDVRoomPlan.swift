@@ -9,19 +9,20 @@ import Foundation
 import UIKit
 import RoomPlan
 import ARKit
+import WebKit
+import Cordova
 
-@objc(CDVRoomPlan)
-class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegate, UIDocumentPickerDelegate {
-    @IBOutlet var doneButton: UIButton?
-    @IBOutlet var cancelButton: UIButton?
-    @IBOutlet var activityIndicator: UIActivityIndicatorView?
+@objc(CDVRoomPlan) class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegate {
+    private var doneButton: UIButton?
+    private var cancelButton: UIButton?
+    private var activityIndicator: UIActivityIndicatorView?
     
     private var state: String = "loaded"
     private var roomCaptureView: RoomCaptureView!
     private var roomCaptureSessionConfig: RoomCaptureSession.Configuration = RoomCaptureSession.Configuration()
     private var processedResult: CapturedRoom?
     
-    var command: CDVInvokedUrlCommand!
+    private var command: CDVInvokedUrlCommand?
     
     func encode(with coder: NSCoder) {
         fatalError("Not Needed")
@@ -31,10 +32,11 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         fatalError("Not Needed")
     }
     
-    override init() {
-        super.init()
+    // Required initializer for CDVPlugin
+    @objc required override init(webViewEngine: WKWebView) {
+        super.init(webViewEngine: webViewEngine)
     }
-    
+        
     @objc(open:)
     func open(command: CDVInvokedUrlCommand) {
         self.command = command
@@ -81,7 +83,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
             let result = ["message": error.localizedDescription]
             let pluginResult = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: result)
             pluginResult?.keepCallback = true
-            self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
+            self.commandDelegate.send(pluginResult, callbackId: self.command?.callbackId)
             return
         }
         self.processedResult = processedResult
@@ -109,7 +111,7 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         let result = ["message": "Scanning cancelled"]
         let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
         pluginResult?.keepCallback = true
-        self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
+        self.commandDelegate.send(pluginResult, callbackId: self.command?.callbackId)
         dismissCaptureView()
     }
     
@@ -118,29 +120,33 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         let uuid = NSUUID().uuidString
         let modelFile = documentsDirectory.appendingPathComponent(uuid + ".usdz")
         let jsonFile = documentsDirectory.appendingPathComponent(uuid + ".json")
+
         do {
             try FileManager.default.createDirectory(at: documentsDirectory, withIntermediateDirectories: true, attributes: nil)
             let jsonEncoder = JSONEncoder()
             let jsonData = try jsonEncoder.encode(self.processedResult)
             try jsonData.write(to: jsonFile)
             try self.processedResult?.export(to: modelFile, exportOptions: .parametric)
+            
             if (self.processedResult != nil) && isCapturedRoomNil(capturedRoom: self.processedResult!) {
                 let result = ["model": modelFile.absoluteString, "json": jsonFile.absoluteString, "message": "Scanning completed successfully"]
                 let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
                 pluginResult?.keepCallback = true
-                self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
+                self.commandDelegate.send(pluginResult, callbackId: self.command?.callbackId)
             } else {
                 let result = ["message": "No results captured"]
                 let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
                 pluginResult?.keepCallback = true
-                self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
+                self.commandDelegate.send(pluginResult, callbackId: self.command?.callbackId)
             }
         } catch {
             let result = ["message": "Error exporting results"]
             let pluginResult = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: result)
             pluginResult?.keepCallback = true
-            self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
+            self.commandDelegate.send(pluginResult, callbackId: self.command?.callbackId)
         }
+        
+        command = nil
     }
     
     private func addButtons() {
@@ -162,16 +168,20 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
     }
     
     func setupConstraints() {
+        guard let viewController = self.viewController,
+              let cancelButton = cancelButton,
+              let doneButton = doneButton else { return }
+        
         NSLayoutConstraint.activate([
-            cancelButton!.leadingAnchor.constraint(equalTo: viewController.view.leadingAnchor, constant: 20),
-            cancelButton!.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            cancelButton!.widthAnchor.constraint(equalToConstant: 100),
-            cancelButton!.heightAnchor.constraint(equalToConstant: 50),
+            cancelButton.leadingAnchor.constraint(equalTo: viewController.view.leadingAnchor, constant: 20),
+            cancelButton.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            cancelButton.widthAnchor.constraint(equalToConstant: 100),
+            cancelButton.heightAnchor.constraint(equalToConstant: 50),
             
-            doneButton!.trailingAnchor.constraint(equalTo: viewController.view.trailingAnchor, constant: -20),
-            doneButton!.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
-            doneButton!.widthAnchor.constraint(equalToConstant: 100),
-            doneButton!.heightAnchor.constraint(equalToConstant: 50)
+            doneButton.trailingAnchor.constraint(equalTo: viewController.view.trailingAnchor, constant: -20),
+            doneButton.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            doneButton.widthAnchor.constraint(equalToConstant: 100),
+            doneButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
     
