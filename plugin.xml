@@ -15,6 +15,6 @@
         </config-file>
         <source-file src="src/ios/CDVRoomPlan.swift" />
         <source-file src="src/ios/CDVRoomPlan.h" type="BridgingHeader" />
-        <dependency id="cordova-plugin-add-swift-support" version="github:adeel-neptune/cordova-plugin-add-swift-support#d450a24560cc0d991a0c4ef1c512710bf89a476b"/>
+        <dependency id="cordova-plugin-add-swift-support" version="github:dinitri/cordova-plugin-add-swift-support#d450a24560cc0d991a0c4ef1c512710bf89a476b"/>
     </platform>
 </plugin>
