@@ -9,6 +9,8 @@ import Foundation
 import UIKit
 import RoomPlan
 import ARKit
+import SpriteKit
+import simd
 
 @objc(CDVRoomPlan)
 class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegate, UIDocumentPickerDelegate {
@@ -125,7 +127,19 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
             try jsonData.write(to: jsonFile)
             try self.processedResult?.export(to: modelFile, exportOptions: .parametric)
             if (self.processedResult != nil) && isCapturedRoomNil(capturedRoom: self.processedResult!) {
-                let result = ["model": modelFile.absoluteString, "json": jsonFile.absoluteString, "message": "Scanning completed successfully"]
+                // Generate 2D floor plan
+                let floorPlanImagePath = generate2DFloorPlan(capturedRoom: self.processedResult!, outputDirectory: documentsDirectory, uuid: uuid)
+                
+                var result: [String: Any] = [
+                    "model": modelFile.absoluteString,
+                    "json": jsonFile.absoluteString,
+                    "message": "Scanning completed successfully"
+                ]
+                
+                if let floorPlanPath = floorPlanImagePath {
+                    result["floorPlan"] = floorPlanPath.absoluteString
+                }
+                
                 let pluginResult = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: result)
                 pluginResult?.keepCallback = true
                 self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
@@ -140,6 +154,228 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
             let pluginResult = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: result)
             pluginResult?.keepCallback = true
             self.commandDelegate.send(pluginResult, callbackId: self.command.callbackId)
+        }
+    }
+    
+    func generate2DFloorPlan(capturedRoom: CapturedRoom, outputDirectory: URL, uuid: String) -> URL? {
+        guard #available(iOS 17.0, *) else {
+            return nil
+        }
+        
+        // Create SpriteKit scene for 2D floor plan
+        let sceneSize = CGSize(width: 2048, height: 2048)
+        let scene = SKScene(size: sceneSize)
+        scene.backgroundColor = .white
+        
+        // Calculate bounds to center the floor plan
+        var minX: Float = Float.greatestFiniteMagnitude
+        var maxX: Float = -Float.greatestFiniteMagnitude
+        var minZ: Float = Float.greatestFiniteMagnitude
+        var maxZ: Float = -Float.greatestFiniteMagnitude
+        
+        // Collect all points to determine bounds
+        var allPoints: [(x: Float, z: Float)] = []
+        
+        // Extract all surfaces to calculate bounds
+        for wall in capturedRoom.walls {
+            let transform = wall.transform
+            let position = transform.position
+            let dimensions = wall.dimensions
+            let halfLength = dimensions.x / 2.0
+            let forward = simd_float3(transform.columns.0.x, transform.columns.0.y, transform.columns.0.z)
+            let wallStart = position - forward * halfLength
+            let wallEnd = position + forward * halfLength
+            allPoints.append((x: wallStart.x, z: wallStart.z))
+            allPoints.append((x: wallEnd.x, z: wallEnd.z))
+        }
+        
+        for door in capturedRoom.doors {
+            let transform = door.transform
+            let position = transform.position
+            allPoints.append((x: position.x, z: position.z))
+        }
+        
+        for window in capturedRoom.windows {
+            let transform = window.transform
+            let position = transform.position
+            allPoints.append((x: position.x, z: position.z))
+        }
+        
+        for obj in capturedRoom.objects {
+            let transform = obj.transform
+            let position = transform.position
+            allPoints.append((x: position.x, z: position.z))
+        }
+        
+        // Calculate bounds
+        for point in allPoints {
+            minX = min(minX, point.x)
+            maxX = max(maxX, point.x)
+            minZ = min(minZ, point.z)
+            maxZ = max(maxZ, point.z)
+        }
+        
+        if allPoints.isEmpty {
+            return nil
+        }
+        
+        // Calculate scale and offset to fit in the scene
+        let width = maxX - minX
+        let height = maxZ - minZ
+        let maxDimension = max(width, height)
+        let scale: Float = maxDimension > 0 ? 1800.0 / maxDimension : 1.0
+        let offsetX = (minX + maxX) / 2.0
+        let offsetZ = (minZ + maxZ) / 2.0
+        
+        // Helper function to convert 3D coordinates to 2D scene coordinates
+        func convertToScene(x: Float, z: Float) -> CGPoint {
+            let sceneX = CGFloat((x - offsetX) * scale) + sceneSize.width / 2
+            let sceneY = CGFloat((z - offsetZ) * scale) + sceneSize.height / 2
+            return CGPoint(x: sceneX, y: sceneY)
+        }
+        
+        // Draw walls using SpriteKit
+        for wall in capturedRoom.walls {
+            let transform = wall.transform
+            let position = transform.position
+            let dimensions = wall.dimensions
+            let eulerAngles = transform.eulerAngles
+            
+            let halfLength = dimensions.x / 2.0
+            let forward = simd_float3(transform.columns.0.x, transform.columns.0.y, transform.columns.0.z)
+            
+            let wallStart = position - forward * halfLength
+            let wallEnd = position + forward * halfLength
+            
+            let startPoint = convertToScene(x: wallStart.x, z: wallStart.z)
+            let endPoint = convertToScene(x: wallEnd.x, z: wallEnd.z)
+            
+            // Create path for wall
+            let path = CGMutablePath()
+            path.move(to: startPoint)
+            path.addLine(to: endPoint)
+            
+            // Create SKShapeNode for wall
+            let wallNode = SKShapeNode(path: path)
+            wallNode.strokeColor = .black
+            wallNode.lineWidth = max(2, CGFloat(dimensions.y * scale * 0.1))
+            wallNode.lineCap = .round
+            scene.addChild(wallNode)
+        }
+        
+        // Draw doors using SpriteKit
+        for door in capturedRoom.doors {
+            let transform = door.transform
+            let position = transform.position
+            let dimensions = door.dimensions
+            let eulerAngles = transform.eulerAngles
+            
+            let scenePoint = convertToScene(x: position.x, z: position.z)
+            let width = CGFloat(dimensions.x * scale)
+            let depth = CGFloat(dimensions.z * scale)
+            
+            // Create rectangle path for door
+            let doorRect = CGRect(
+                x: scenePoint.x - width / 2,
+                y: scenePoint.y - depth / 2,
+                width: width,
+                height: depth
+            )
+            let path = CGPath(rect: doorRect, transform: nil)
+            
+            // Create SKShapeNode for door
+            let doorNode = SKShapeNode(path: path)
+            doorNode.fillColor = .lightGray
+            doorNode.strokeColor = .blue
+            doorNode.lineWidth = 2
+            doorNode.zRotation = CGFloat(eulerAngles.y) // Rotate based on Y-axis rotation
+            scene.addChild(doorNode)
+        }
+        
+        // Draw windows using SpriteKit
+        for window in capturedRoom.windows {
+            let transform = window.transform
+            let position = transform.position
+            let dimensions = window.dimensions
+            let eulerAngles = transform.eulerAngles
+            
+            let scenePoint = convertToScene(x: position.x, z: position.z)
+            let width = CGFloat(dimensions.x * scale)
+            let depth = CGFloat(dimensions.z * scale)
+            
+            // Create rectangle path for window
+            let windowRect = CGRect(
+                x: scenePoint.x - width / 2,
+                y: scenePoint.y - depth / 2,
+                width: width,
+                height: depth
+            )
+            let path = CGPath(rect: windowRect, transform: nil)
+            
+            // Create SKShapeNode for window
+            let windowNode = SKShapeNode(path: path)
+            windowNode.fillColor = .white
+            windowNode.strokeColor = .cyan
+            windowNode.lineWidth = 2
+            windowNode.zRotation = CGFloat(eulerAngles.y)
+            scene.addChild(windowNode)
+        }
+        
+        // Draw objects using SpriteKit
+        for obj in capturedRoom.objects {
+            let transform = obj.transform
+            let position = transform.position
+            let dimensions = obj.dimensions
+            let eulerAngles = transform.eulerAngles
+            
+            let scenePoint = convertToScene(x: position.x, z: position.z)
+            let width = CGFloat(dimensions.x * scale)
+            let depth = CGFloat(dimensions.z * scale)
+            
+            // Create rectangle path for object
+            let objectRect = CGRect(
+                x: scenePoint.x - width / 2,
+                y: scenePoint.y - depth / 2,
+                width: width,
+                height: depth
+            )
+            let path = CGPath(rect: objectRect, transform: nil)
+            
+            // Create SKShapeNode for object
+            let objectNode = SKShapeNode(path: path)
+            objectNode.fillColor = .lightGray
+            objectNode.strokeColor = .brown
+            objectNode.lineWidth = 2
+            objectNode.zRotation = CGFloat(eulerAngles.y)
+            scene.addChild(objectNode)
+        }
+        
+        // Render the SpriteKit scene to an image
+        let imageFile = outputDirectory.appendingPathComponent(uuid + "_floorplan.png")
+        
+        // Create SKView to render the scene
+        let skView = SKView(frame: CGRect(origin: .zero, size: sceneSize))
+        skView.presentScene(scene)
+        
+        // Get texture from the scene
+        guard let texture = skView.texture(from: scene) else {
+            return nil
+        }
+        
+        // Convert texture to UIImage
+        let cgImage = texture.cgImage()
+        let uiImage = UIImage(cgImage: cgImage)
+        
+        // Save the image
+        guard let imageData = uiImage.pngData() else {
+            return nil
+        }
+        
+        do {
+            try imageData.write(to: imageFile)
+            return imageFile
+        } catch {
+            return nil
         }
     }
     
@@ -191,6 +427,33 @@ class CDVRoomPlan: CDVPlugin, RoomCaptureSessionDelegate, RoomCaptureViewDelegat
         } else {
             return false
         }
+    }
+}
+
+// Extension for simd_float4x4 to extract position and euler angles (as per article reference)
+extension simd_float4x4 {
+    var position: simd_float3 {
+        return simd_float3(self.columns.3.x, self.columns.3.y, self.columns.3.z)
+    }
+    
+    var eulerAngles: simd_float3 {
+        // Extract rotation angles from the transform matrix
+        let sy = sqrt(self.columns.0.x * self.columns.0.x + self.columns.1.x * self.columns.1.x)
+        let singular = sy < 1e-6
+        
+        var x: Float, y: Float, z: Float
+        
+        if !singular {
+            x = atan2(self.columns.2.y, self.columns.2.z)
+            y = atan2(-self.columns.2.x, sy)
+            z = atan2(self.columns.1.x, self.columns.0.x)
+        } else {
+            x = atan2(-self.columns.1.z, self.columns.1.y)
+            y = atan2(-self.columns.2.x, sy)
+            z = 0
+        }
+        
+        return simd_float3(x, y, z)
     }
 }
 
